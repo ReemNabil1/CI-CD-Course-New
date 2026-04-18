@@ -4,6 +4,7 @@ name: CI and ECR Push Workflow
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened]
 
   workflow_dispatch:
 
@@ -27,7 +28,6 @@ jobs:
 
   build-and-push:
     needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     
     steps:

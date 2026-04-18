@@ -1,15 +1,15 @@
 name: CI Workflow
 
 on:
-  push:
-    paths:
-      - "app/**"
-      - "tests/**"
-      - ".github/workflows/02-ci.yml"
+  #push:
+   # paths:
+    #  - "app/**"
+      #- "tests/**"
+      #- ".github/workflows/02-ci.yml"
 
-  pull_request:
-    branches:
-      - main
+ # pull_request:
+    #branches:
+     # - main
 
   workflow_dispatch:
 
