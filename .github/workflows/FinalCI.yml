@@ -2,23 +2,22 @@ name: CI Final Workflow
 
 on:
   pull_request:
-    paths:
-      - "app/**"
-      - "tests/**"
-      - ".github/workflows/03-ci-build.yml"
-
-env:
-  IMAGE_NAME: tiny-health-app
-  IMAGE_TAR: tiny-health-app.tar
-  ARTIFACT_NAME: tiny-health-app-image
-
+    branches:
+      - main
 
 jobs:
- run-tests:
+
+  pipeline:
+    name: Verify + Build (PR Only)
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_NAME: tiny-health-app
+      IMAGE_TAR: tiny-health-app.tar
+      ARTIFACT_NAME: tiny-health-app-image
+
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Set up Python
@@ -27,41 +26,20 @@ jobs:
           python-version: "3.12"
 
       - name: Run tests
-        run: python -m unittest discover -s tests -v
+        run: python -m unittest discover -s tests -p "test*.py" -v
 
-
- build-package:
-    runs-on: ubuntu-latest
-    needs: run-tests
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Run tests
-        run: python -m unittest discover -s tests -v
-
-      - name: Set image tag
-        id: image-tag
+      - name: Wait 5 minutes (demo only)
         run: |
-          TODAY="$(date -u +%Y-%m-%d)"
-          IMAGE_TAG="${TODAY}-${GITHUB_RUN_ID}"
-          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Sleeping for 5 minutes..."
+          sleep 300
 
-      - name: Build Docker image with docker build
-        run: |
-          docker build \
-            -t "${IMAGE_NAME}:${{ steps.image-tag.outputs.image_tag }}" \
-            .
+      - name: Build Docker image
+        run: docker build -t ${IMAGE_NAME}:latest .
 
-      - name: Save Docker image as artifact file
-        run: docker save "${IMAGE_NAME}:${{ steps.image-tag.outputs.image_tag }}" -o "${IMAGE_TAR}"
+      - name: Save Docker image
+        run: docker save ${IMAGE_NAME}:latest -o ${IMAGE_TAR}
 
-      - name: Upload build artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
