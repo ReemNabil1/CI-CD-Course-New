@@ -27,4 +27,7 @@ jobs:
           python-version: "3.12"
 
       - name: Run tests
-        run: python -m unittest discover -s tests -p "test*.py" -v
+        run: |
+          echo "Starting CI tests..."
+          sleep 10
+          python -m unittest discover -s tests -p "test*.py" -v
