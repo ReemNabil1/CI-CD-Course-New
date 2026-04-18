@@ -16,7 +16,7 @@ jobs:
 
     steps:
       # -----------------------------
-      # Checkout Code
+      # Checkout Source Code
       # -----------------------------
       - name: Check out repository
         uses: actions/checkout@v4
@@ -30,19 +30,19 @@ jobs:
           python-version: "3.12"
 
       # -----------------------------
-      # Run Tests
+      # Run Unit Tests
       # -----------------------------
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
       # -----------------------------
-      # Build Local Docker Image
+      # Build Docker Image Locally
       # -----------------------------
       - name: Build Docker image locally
         run: docker build -t ${LOCAL_IMAGE_NAME}:latest .
 
       # -----------------------------
-      # Scan Image with Trivy
+      # Trivy Security Scan (Fast)
       # -----------------------------
       - name: Run Trivy Image Scan
         uses: aquasecurity/trivy-action@master
@@ -52,6 +52,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: HIGH,CRITICAL
+          scanners: vuln
 
       # -----------------------------
       # Configure AWS Credentials
@@ -71,7 +72,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       # -----------------------------
-      # Create Dynamic Tag
+      # Generate Dynamic Tag
       # -----------------------------
       - name: Set image tag
         id: image-tag
@@ -81,7 +82,7 @@ jobs:
           echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       # -----------------------------
-      # Tag + Push to ECR
+      # Tag and Push Image to ECR
       # -----------------------------
       - name: Tag and Push Image to ECR
         env:

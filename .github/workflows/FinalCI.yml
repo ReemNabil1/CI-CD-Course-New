@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  verify1:
+  verify:
     name: Verify Tests
     runs-on: ubuntu-latest
 
