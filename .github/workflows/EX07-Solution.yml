@@ -1,0 +1,55 @@
+name: ExX07-Solution
+
+on:
+  workflow_run:
+    workflows:
+      - 03 Build Artifact Workflow
+    types:
+      - completed
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: tiny-health-app
+      IMAGE_TAR: tiny-health-app.tar
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tiny-health-app-package
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load Docker image
+        run: docker load -i $IMAGE_TAR
+
+      - name: Recreate image tag from build run
+        run: |
+          BUILD_DATE=$(date -u -d "${{ github.event.workflow_run.created_at }}" +%Y%m%d)
+          IMAGE_TAG=${BUILD_DATE}-${{ github.event.workflow_run.id }}
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "Recreated image tag: $IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Start container
+        run: |
+          docker rm -f tiny-health-container || true
+          docker run -d \
+            --name tiny-health-container \
+            -p 8000:8000 \
+            $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Show running containers
+        run: docker ps
+
+      - name: Print /health response body
+        run: |
+          sleep 5
+          curl http://127.0.0.1:8000/health
+
+      - name: Smoke test deployed app
+        run: |
+          curl --fail http://127.0.0.1:8000/health
