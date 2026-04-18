@@ -1,4 +1,4 @@
-name: 02 CI Workflow
+name: CI Workflow
 
 on:
   push:
@@ -27,4 +27,4 @@ jobs:
           python-version: "3.12"
 
       - name: Run tests
-        run: python -m unittest discover -s . -v
+        run: python -m unittest discover -s tests -p "test*.py" -v
