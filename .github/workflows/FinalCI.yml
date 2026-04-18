@@ -1,0 +1,64 @@
+name: CI Final Workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+jobs:
+
+  verify:
+    name: Verify (CI on PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -p "test*.py" -v
+
+
+  build:
+    name: Build Artifact (after merge to main)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: tiny-health-app
+      IMAGE_TAR: tiny-health-app.tar
+      ARTIFACT_NAME: tiny-health-app-image
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run tests (safety gate)
+        run: python -m unittest discover -s tests -p "test*.py" -v
+
+      - name: Build Docker image
+        run: docker build -t ${IMAGE_NAME}:latest .
+
+      - name: Save Docker image
+        run: docker save ${IMAGE_NAME}:latest -o ${IMAGE_TAR}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.IMAGE_TAR }}
