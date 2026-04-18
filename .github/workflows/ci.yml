@@ -1,20 +1,21 @@
-# This workflow verifies the code, and upon merge, builds and pushes to AWS ECR.
-name: CI and ECR Push Workflow
+name: CI and ECR Push Workflow 
 
 on:
   pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-
-  workflow_dispatch:
-
-env:
-  ECR_REPOSITORY: "ci-cd" 
+    branches:
+      - main
 
 jobs:
-  verify:
+
+  pipeline:
+    name: Verify + Build + Push
     runs-on: ubuntu-latest
+
+    env:
+      ECR_REPOSITORY: ci-cd
+
     steps:
+
       - name: Check out repository
         uses: actions/checkout@v4
 
@@ -23,16 +24,21 @@ jobs:
         with:
           python-version: "3.12"
 
+
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-  build-and-push:
-    needs: verify
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+
+      - name: Run Trivy Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,19 +58,12 @@ jobs:
           IMAGE_TAG="${TODAY}-${GITHUB_RUN_ID}"
           echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build and Push Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          DYNAMIC_TAG: ${{ steps.image-tag.outputs.image_tag }}
+          IMAGE_TAG: ${{ steps.image-tag.outputs.image_tag }}
         run: |
-          IMAGE_URI_DYNAMIC="$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$DYNAMIC_TAG"
-          IMAGE_URI_LATEST="$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest_1"
-          
-          echo "==== Building Docker Image with multiple tags ===="
-          docker build -t $IMAGE_URI_DYNAMIC -t $IMAGE_URI_LATEST .
-          
-          echo "==== Pushing Dynamic Tag to ECR ===="
-          docker push $IMAGE_URI_DYNAMIC
-          
-          echo "==== Pushing Latest Tag to ECR ===="
-          docker push $IMAGE_URI_LATEST
+          IMAGE_URI="$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG"
+
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
