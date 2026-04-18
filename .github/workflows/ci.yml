@@ -7,7 +7,7 @@ on:
 
 jobs:
   pipeline:
-    name: Verify + Build + Fix + Scan + Push
+    name: Verify + AutoFix + Scan + Build + Push
     runs-on: ubuntu-latest
 
     env:
@@ -16,9 +16,9 @@ jobs:
 
     steps:
       # ---------------------------------
-      # Checkout Repository
+      # Checkout
       # ---------------------------------
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       # ---------------------------------
@@ -30,19 +30,13 @@ jobs:
           python-version: "3.12"
 
       # ---------------------------------
-      # Run Tests
-      # ---------------------------------
-      - name: Run tests
-        run: python -m unittest discover -s tests -v
-
-      # ---------------------------------
-      # Upgrade Python Tools
+      # Install base tools
       # ---------------------------------
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
       # ---------------------------------
-      # Upgrade Requirements if exists
+      # Install dependencies
       # ---------------------------------
       - name: Install dependencies
         run: |
@@ -51,13 +45,36 @@ jobs:
           fi
 
       # ---------------------------------
-      # Build Docker Image
+      # Run Tests (first gate)
       # ---------------------------------
-      - name: Build Docker image locally
-        run: docker build --pull -t ${LOCAL_IMAGE_NAME}:latest .
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
 
       # ---------------------------------
-      # Scan Docker Image
+      # Try auto upgrade dependencies
+      # ---------------------------------
+      - name: Auto upgrade dependencies (best effort fix)
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install pip-review
+            pip-review --auto
+            pip freeze > requirements.txt
+          fi
+
+      # ---------------------------------
+      # Re-run tests after upgrade
+      # ---------------------------------
+      - name: Run tests after upgrade
+        run: python -m unittest discover -s tests -v
+
+      # ---------------------------------
+      # Build Docker Image
+      # ---------------------------------
+      - name: Build Docker image
+        run: docker build --pull -t tiny-health-app:latest .
+
+      # ---------------------------------
+      # Trivy Scan (Security Gate)
       # ---------------------------------
       - name: Run Trivy Image Scan
         uses: aquasecurity/trivy-action@master
@@ -70,7 +87,7 @@ jobs:
           scanners: vuln
 
       # ---------------------------------
-      # Configure AWS Credentials
+      # AWS Credentials
       # ---------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -80,14 +97,14 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       # ---------------------------------
-      # Login to Amazon ECR
+      # Login to ECR
       # ---------------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       # ---------------------------------
-      # Generate Dynamic Tag
+      # Generate Tag
       # ---------------------------------
       - name: Set image tag
         id: image-tag
@@ -97,14 +114,14 @@ jobs:
           echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       # ---------------------------------
-      # Tag and Push to ECR
+      # Tag + Push
       # ---------------------------------
-      - name: Tag and Push Image to ECR
+      - name: Tag and Push Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.image-tag.outputs.image_tag }}
         run: |
           IMAGE_URI="$ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG"
 
-          docker tag ${LOCAL_IMAGE_NAME}:latest $IMAGE_URI
+          docker tag tiny-health-app:latest $IMAGE_URI
           docker push $IMAGE_URI
