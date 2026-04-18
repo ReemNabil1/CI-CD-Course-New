@@ -9,30 +9,19 @@ jobs:
 
     env:
       IMAGE_NAME: tiny-health-app
-      IMAGE_TAR: tiny-health-app.tar
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tiny-health-app-package
-
-      - name: Load Docker image
-        run: docker load -i $IMAGE_TAR
-
-      - name: Create deploy image tag
+      - name: Build Docker image
         run: |
-          BUILD_DATE=$(date -u +%Y%m%d)
-          IMAGE_TAG=${BUILD_DATE}-${{ github.run_id }}
+          IMAGE_TAG=$(date -u +%Y%m%d)-${{ github.run_id }}
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "Deploy image tag: $IMAGE_NAME:$IMAGE_TAG"
+          docker build -t $IMAGE_NAME:$IMAGE_TAG .
 
-      - name: Retag loaded image
-        run: |
-          docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
+      - name: Show image tag
+        run: echo "Deploying image $IMAGE_NAME:$IMAGE_TAG"
 
       - name: Start container
         run: |
@@ -51,5 +40,4 @@ jobs:
           curl http://127.0.0.1:8000/health
 
       - name: Smoke test deployed app
-        run: |
-          curl --fail http://127.0.0.1:8000/health
+        run: curl --fail http://127.0.0.1:8000/health
