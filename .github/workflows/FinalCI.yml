@@ -51,6 +51,11 @@ jobs:
       - name: Run tests (safety gate)
         run: python -m unittest discover -s tests -p "test*.py" -v
 
+      - name: Wait 5 minutes (ensure previous steps completed)
+        run: |
+          echo "Sleeping for 5 minutes ..."
+          sleep 300
+
       - name: Build Docker image
         run: docker build -t ${IMAGE_NAME}:latest .
 
