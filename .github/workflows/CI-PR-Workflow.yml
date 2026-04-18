@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify:
+  verify2:
     runs-on: ubuntu-latest
 
     steps:
