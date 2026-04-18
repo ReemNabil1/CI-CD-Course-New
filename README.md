@@ -11,7 +11,7 @@ We will follow one simple story through the whole course:
 3. package
 4. deliver
 
-Reem Nabil Kamel
+Reem Nabil
 
 ## Start Here
 
