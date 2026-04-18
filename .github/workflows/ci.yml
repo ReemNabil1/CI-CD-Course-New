@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  ECR_REPOSITORY: "CI-CD-Course-New" 
+  ECR_REPOSITORY: "ci-cd" 
 
 jobs:
   verify:
