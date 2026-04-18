@@ -1,15 +1,10 @@
-name: ExX07-Solution
+name: Ex07-Solution
 
 on:
-  workflow_run:
-    workflows:
-      - 03 Build Artifact Workflow
-    types:
-      - completed
+  workflow_dispatch:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     env:
@@ -17,22 +12,27 @@ jobs:
       IMAGE_TAR: tiny-health-app.tar
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: tiny-health-app-package
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Load Docker image
         run: docker load -i $IMAGE_TAR
 
-      - name: Recreate image tag from build run
+      - name: Create deploy image tag
         run: |
-          BUILD_DATE=$(date -u -d "${{ github.event.workflow_run.created_at }}" +%Y%m%d)
-          IMAGE_TAG=${BUILD_DATE}-${{ github.event.workflow_run.id }}
+          BUILD_DATE=$(date -u +%Y%m%d)
+          IMAGE_TAG=${BUILD_DATE}-${{ github.run_id }}
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "Recreated image tag: $IMAGE_NAME:$IMAGE_TAG"
+          echo "Deploy image tag: $IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Retag loaded image
+        run: |
+          docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
 
       - name: Start container
         run: |
